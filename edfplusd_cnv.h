@@ -26,25 +26,6 @@
 */
 
 
-#ifndef UI_EDFD2EDFCFORM_H
-#define UI_EDFD2EDFCFORM_H
-
-
-#include <QtGlobal>
-#include <QApplication>
-#include <QDialog>
-#include <QPushButton>
-#include <QObject>
-#include <QTextEdit>
-#include <QFileDialog>
-#include <QProgressDialog>
-#include <QStyle>
-#if QT_VERSION < 0x050000
-#include <QPlastiqueStyle>
-#include <QWindowsStyle>
-#endif
-#include <QString>
-#include <QByteArray>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,41 +37,6 @@
 #include "utils.h"
 #include "edf_annot_list.h"
 
-
-
-
-class UI_EDFDwindow : public QObject
-{
-  Q_OBJECT
-
-public:
-
-  UI_EDFDwindow(char *, char *);
-
-private:
-
-QPushButton  *pushButton1,
-             *pushButton2;
-
-QTextEdit    *textEdit1;
-
-QDialog      *myobjectDialog;
-
-char *recent_opendir,
-     *recent_savedir;
-
-long long get_datarecord_timestamp(char *);
-void write_values_to_hdr(FILE *, long long, int, struct edfhdrblock *);
-
-private slots:
-
 void SelectFileButton();
-
-};
-
-
-
-
-#endif
-
-
+void write_values_to_hdr(FILE *outputfile, long long timestamp, int datarecords, struct edfhdrblock *edfhdr);
+long long get_datarecord_timestamp(char *str);
