@@ -40,8 +40,6 @@
 #include "global.h"
 #include "utc_date_time.h"
 
-#include <QApplication>
-
 
 
 class EDFfileCheck

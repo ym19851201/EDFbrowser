@@ -37,54 +37,7 @@
 
 #define ANNOT_TRACKSIZE 54
 
-
-
-
-
-UI_NK2EDFwindow::UI_NK2EDFwindow(char *recent_dir)
-{
-  char txt_string[2048];
-
-  recent_opendir = recent_dir;
-
-  myobjectDialog = new QDialog;
-
-  myobjectDialog->setMinimumSize(600, 480);
-  myobjectDialog->setMaximumSize(600, 480);
-  myobjectDialog->setWindowTitle("Nihon Kohden to EDF(+) converter");
-  myobjectDialog->setModal(true);
-  myobjectDialog->setAttribute(Qt::WA_DeleteOnClose, true);
-
-  pushButton1 = new QPushButton(myobjectDialog);
-  pushButton1->setGeometry(20, 430, 100, 25);
-  pushButton1->setText("Select File");
-
-  pushButton2 = new QPushButton(myobjectDialog);
-  pushButton2->setGeometry(480, 430, 100, 25);
-  pushButton2->setText("Close");
-
-  checkBox1 = new QCheckBox(myobjectDialog);
-  checkBox1->setGeometry(200, 430, 120, 25);
-  checkBox1->setText("Create EDF+");
-  checkBox1->setCheckState(Qt::Checked);
-
-  textEdit1 = new QTextEdit(myobjectDialog);
-  textEdit1->setGeometry(20, 20, 560, 380);
-  textEdit1->setFrameStyle(QFrame::Panel | QFrame::Sunken);
-  textEdit1->setReadOnly(true);
-  textEdit1->setLineWrapMode(QTextEdit::NoWrap);
-  sprintf(txt_string, "Nihon Kohden to EDF(+) converter.\n");
-  textEdit1->append(txt_string);
-
-  QObject::connect(pushButton1, SIGNAL(clicked()), this, SLOT(SelectFileButton()));
-  QObject::connect(pushButton2, SIGNAL(clicked()), myobjectDialog, SLOT(close()));
-
-  myobjectDialog->exec();
-}
-
-
-
-void UI_NK2EDFwindow::SelectFileButton()
+int main(int argc, char* args[])
 {
   FILE *inputfile=NULL,
        *outputfile=NULL,
@@ -116,521 +69,458 @@ void UI_NK2EDFwindow::SelectFileButton()
        scratchpad[256];
 
 
-  pushButton1->setEnabled(false);
 
-  edfplus = checkBox1->checkState();
+//  edfplus = checkBox1->checkState();
+  edfplus = true;
 
   total_elapsed_time = 0;
 
-  strcpy(path, QFileDialog::getOpenFileName(0, "Select inputfile", QString::fromLocal8Bit(recent_opendir), "EEG files (*.eeg *.EEG)").toLocal8Bit().data());
+  for(int count = 1; count < argc; count++) {
+    strcpy(path, args[count]);
 
-  if(!strcmp(path, ""))
-  {
-    pushButton1->setEnabled(true);
-    return;
-  }
-
-  get_directory_from_path(recent_opendir, path, MAX_PATH_LENGTH);
-
-  inputfile = fopeno(path, "rb");
-  if(inputfile==NULL)
-  {
-    snprintf(txt_string, 2048, "can not open file %s for reading.\n", path);
-    textEdit1->append(QString::fromLocal8Bit(txt_string));
-    pushButton1->setEnabled(true);
-    return;
-  }
-
-/***************** check if the EEG file is valid ******************************/
-
-  rewind(inputfile);
-  if(fread(scratchpad, 16, 1, inputfile)!=1)
-  {
-    textEdit1->append("error reading .eeg file.\n");
-    fclose(inputfile);
-    pushButton1->setEnabled(true);
-    return;
-  }
-  scratchpad[16] = 0;
-  if(check_device(scratchpad))
-  {
-    snprintf(txt_string, 2048, "error, deviceblock has unknown signature: \"%s\"\n", scratchpad);
-    textEdit1->append(txt_string);
-    fclose(inputfile);
-    pushButton1->setEnabled(true);
-    return;
-  }
-  fseeko(inputfile, 0x0081LL, SEEK_SET);
-  if(fread(scratchpad, 16, 1, inputfile)!=1)
-  {
-    textEdit1->append("error reading .eeg file.\n");
-    fclose(inputfile);
-    pushButton1->setEnabled(true);
-    return;
-  }
-  scratchpad[16] = 0;
-  if(check_device(scratchpad))
-  {
-    snprintf(txt_string, 2048, "error, controlblock has unknown signature: \"%s\"\n", scratchpad);
-    textEdit1->append(txt_string);
-    fclose(inputfile);
-    pushButton1->setEnabled(true);
-    return;
-  }
-  fseeko(inputfile, 0x17feLL, SEEK_SET);
-  if(fgetc(inputfile)!=0x01)
-  {
-    snprintf(txt_string, 2048, "error, waveformdatablock has wrong signature.\n");
-    textEdit1->append(txt_string);
-    fclose(inputfile);
-    pushButton1->setEnabled(true);
-    return;
-  }
-
-/************************* read logs **********************************************/
-
-  if(edfplus)
-  {
-    strncpy(logfilepath, path, MAX_PATH_LENGTH);
-    remove_extension_from_filename(logfilepath);
-    strcat(logfilepath, ".LOG");
-    logfile = fopeno(logfilepath, "rb");
-    if(logfile==NULL)
+    if(!strcmp(path, ""))
     {
-      remove_extension_from_filename(logfilepath);
-      strcat(logfilepath, ".log");
-      logfile = fopeno(logfilepath, "rb");
-      if(logfile==NULL)
-      {
-        snprintf(txt_string, 2048, "Can not open file %s for reading,\n"
-                            "if there is no .log file you can try to create an EDF file instead of EDF+.\n",
-                            logfilepath);
-        textEdit1->append(QString::fromLocal8Bit(txt_string));
-        fclose(inputfile);
-        pushButton1->setEnabled(true);
-        return;
-      }
+      return -1;
     }
 
-    rewind(logfile);
-    if(fread(scratchpad, 16, 1, logfile)!=1)
+
+    inputfile = fopeno(path, "rb");
+    if(inputfile==NULL)
     {
-      textEdit1->append("error reading .log file.\n");
-      fclose(logfile);
+      snprintf(txt_string, 2048, "can not open file %s for reading.\n", path);
+      return -1;
+    }
+
+    /***************** check if the EEG file is valid ******************************/
+
+    rewind(inputfile);
+    if(fread(scratchpad, 16, 1, inputfile)!=1)
+    {
       fclose(inputfile);
-      pushButton1->setEnabled(true);
-      return;
+      return -1;
     }
     scratchpad[16] = 0;
     if(check_device(scratchpad))
     {
-      snprintf(txt_string, 2048, "error, .log file has unknown signature: \"%s\"\n", scratchpad);
-      textEdit1->append(QString::fromLocal8Bit(txt_string));
-      fclose(logfile);
+      snprintf(txt_string, 2048, "error, deviceblock has unknown signature: \"%s\"\n", scratchpad);
       fclose(inputfile);
-      pushButton1->setEnabled(true);
-      return;
+      return -1;
+    }
+    fseeko(inputfile, 0x0081LL, SEEK_SET);
+    if(fread(scratchpad, 16, 1, inputfile)!=1)
+    {
+      fclose(inputfile);
+      return -1;
+    }
+    scratchpad[16] = 0;
+    if(check_device(scratchpad))
+    {
+      snprintf(txt_string, 2048, "error, controlblock has unknown signature: \"%s\"\n", scratchpad);
+      fclose(inputfile);
+      return -1;
+    }
+    fseeko(inputfile, 0x17feLL, SEEK_SET);
+    if(fgetc(inputfile)!=0x01)
+    {
+      snprintf(txt_string, 2048, "error, waveformdatablock has wrong signature.\n");
+      fclose(inputfile);
+      return -1;
     }
 
-    fseeko(logfile, 0x0091LL, SEEK_SET);
-    n_logblocks = fgetc(logfile);
-    log_buf = (char *)calloc(1, n_logblocks * 11521);
-    if(log_buf==NULL)
+    /************************* read logs **********************************************/
+
+    if(edfplus)
     {
-      textEdit1->append("malloc error\n");
-      fclose(logfile);
-      fclose(inputfile);
-      pushButton1->setEnabled(true);
-      return;
-    }
-    sublog_buf = (char *)calloc(1, n_logblocks * 11521);
-    if(sublog_buf==NULL)
-    {
-      textEdit1->append("malloc error\n");
-      fclose(logfile);
-      fclose(inputfile);
-      free(log_buf);
-      pushButton1->setEnabled(true);
-      return;
-    }
-
-    read_subevents = 1;
-
-    total_logs = 0;
-
-    for(i=0; i<n_logblocks; i++)
-    {
-      fseeko(logfile, (long long)(0x0092 + (i * 20)), SEEK_SET);
-      if(fread((char *)(&logblock_address), 4, 1, logfile)!=1)
+      strncpy(logfilepath, path, MAX_PATH_LENGTH);
+      remove_extension_from_filename(logfilepath);
+      strcat(logfilepath, ".LOG");
+      logfile = fopeno(logfilepath, "rb");
+      if(logfile==NULL)
       {
-        textEdit1->append("error reading .log file.\n");
-        fclose(inputfile);
-        fclose(logfile);
-        free(log_buf);
-        free(sublog_buf);
-        pushButton1->setEnabled(true);
-        return;
-      }
-      fseeko(logfile, (long long)(logblock_address + 0x0012), SEEK_SET);
-      n_logs = fgetc(logfile);
-      fseeko(logfile, (long long)(logblock_address + 0x0014), SEEK_SET);
-      if(fread(log_buf + (total_logs * 45), n_logs * 45, 1, logfile)!=1)
-      {
-        textEdit1->append("error reading .log file.\n");
-        fclose(inputfile);
-        fclose(logfile);
-        free(log_buf);
-        free(sublog_buf);
-        pushButton1->setEnabled(true);
-        return;
-      }
-
-      if(read_subevents)
-      {
-        if(fseeko(logfile, 0x0092LL + ((i + 22) * 20) , SEEK_SET))
+        remove_extension_from_filename(logfilepath);
+        strcat(logfilepath, ".log");
+        logfile = fopeno(logfilepath, "rb");
+        if(logfile==NULL)
         {
-          read_subevents = 0;
+          snprintf(txt_string, 2048, "Can not open file %s for reading,\n"
+              "if there is no .log file you can try to create an EDF file instead of EDF+.\n",
+              logfilepath);
+          fclose(inputfile);
+          return -1;
         }
-        else
+      }
+
+      rewind(logfile);
+      if(fread(scratchpad, 16, 1, logfile)!=1)
+      {
+        fclose(logfile);
+        fclose(inputfile);
+        return -1;
+      }
+      scratchpad[16] = 0;
+      if(check_device(scratchpad))
+      {
+        snprintf(txt_string, 2048, "error, .log file has unknown signature: \"%s\"\n", scratchpad);
+        fclose(logfile);
+        fclose(inputfile);
+        return -1;
+      }
+
+      fseeko(logfile, 0x0091LL, SEEK_SET);
+      n_logblocks = fgetc(logfile);
+      log_buf = (char *)calloc(1, n_logblocks * 11521);
+      if(log_buf==NULL)
+      {
+        fclose(logfile);
+        fclose(inputfile);
+        return -1;
+      }
+      sublog_buf = (char *)calloc(1, n_logblocks * 11521);
+      if(sublog_buf==NULL)
+      {
+        fclose(logfile);
+        fclose(inputfile);
+        free(log_buf);
+        return -1;
+      }
+
+      read_subevents = 1;
+
+      total_logs = 0;
+
+      for(i=0; i<n_logblocks; i++)
+      {
+        fseeko(logfile, (long long)(0x0092 + (i * 20)), SEEK_SET);
+        if(fread((char *)(&logblock_address), 4, 1, logfile)!=1)
         {
-          if(fread((char *)(&logblock_address), 4, 1, logfile)!=1)
+          fclose(inputfile);
+          fclose(logfile);
+          free(log_buf);
+          free(sublog_buf);
+          return -1;
+        }
+        fseeko(logfile, (long long)(logblock_address + 0x0012), SEEK_SET);
+        n_logs = fgetc(logfile);
+        fseeko(logfile, (long long)(logblock_address + 0x0014), SEEK_SET);
+        if(fread(log_buf + (total_logs * 45), n_logs * 45, 1, logfile)!=1)
+        {
+          fclose(inputfile);
+          fclose(logfile);
+          free(log_buf);
+          free(sublog_buf);
+          return -1;
+        }
+
+        if(read_subevents)
+        {
+          if(fseeko(logfile, 0x0092LL + ((i + 22) * 20) , SEEK_SET))
           {
             read_subevents = 0;
           }
           else
           {
-            if(fseeko(logfile, logblock_address + 0x0012LL, SEEK_SET))
+            if(fread((char *)(&logblock_address), 4, 1, logfile)!=1)
             {
               read_subevents = 0;
             }
             else
             {
-              n_sublogs = fgetc(logfile);
-              if(n_sublogs != n_logs)
+              if(fseeko(logfile, logblock_address + 0x0012LL, SEEK_SET))
               {
                 read_subevents = 0;
               }
               else
               {
-                if(fseeko(logfile, logblock_address + 0x0014LL, SEEK_SET))
+                n_sublogs = fgetc(logfile);
+                if(n_sublogs != n_logs)
                 {
                   read_subevents = 0;
                 }
                 else
                 {
-                  if(fread(sublog_buf + (total_logs * 45), n_sublogs * 45, 1, logfile)!=1)
+                  if(fseeko(logfile, logblock_address + 0x0014LL, SEEK_SET))
                   {
                     read_subevents = 0;
+                  }
+                  else
+                  {
+                    if(fread(sublog_buf + (total_logs * 45), n_sublogs * 45, 1, logfile)!=1)
+                    {
+                      read_subevents = 0;
+                    }
                   }
                 }
               }
             }
           }
         }
+
+        total_logs += n_logs;
       }
 
-      total_logs += n_logs;
-    }
-
-    for(i=0; i<total_logs; i++)
-    {
-      for(j=0; j<20; j++)
+      for(i=0; i<total_logs; i++)
       {
-        if(((unsigned char *)log_buf)[(i * 45) + j]<32)  log_buf[(i * 45) + j] = ' ';
+        for(j=0; j<20; j++)
+        {
+          if(((unsigned char *)log_buf)[(i * 45) + j]<32)  log_buf[(i * 45) + j] = ' ';
+        }
+
+        latin1_to_utf8(log_buf + (i * 45), 20);
+
+        if(read_subevents)
+        {
+          strncpy(log_buf + (i * 45) + 26, sublog_buf + (i * 45) + 24, 6);
+        }
       }
 
-      latin1_to_utf8(log_buf + (i * 45), 20);
+      /************************* check pntfile **********************************************/
 
-      if(read_subevents)
-      {
-        strncpy(log_buf + (i * 45) + 26, sublog_buf + (i * 45) + 24, 6);
-      }
-    }
-
-/************************* check pntfile **********************************************/
-
-    strncpy(pntfilepath, path, MAX_PATH_LENGTH);
-    remove_extension_from_filename(logfilepath);
-    strcat(logfilepath, ".PNT");
-    pntfile = fopeno(pntfilepath, "rb");
-    if(pntfile==NULL)
-    {
+      strncpy(pntfilepath, path, MAX_PATH_LENGTH);
       remove_extension_from_filename(logfilepath);
-      strcat(logfilepath, ".pnt");
+      strcat(logfilepath, ".PNT");
       pntfile = fopeno(pntfilepath, "rb");
       if(pntfile==NULL)
       {
-        snprintf(txt_string, 2048, "Can not open file %s for reading,\n"
-                            "if there is no .pnt file you can try to create an EDF file instead of EDF+.\n",
-                            pntfilepath);
-        textEdit1->append(QString::fromLocal8Bit(txt_string));
+        remove_extension_from_filename(logfilepath);
+        strcat(logfilepath, ".pnt");
+        pntfile = fopeno(pntfilepath, "rb");
+        if(pntfile==NULL)
+        {
+          snprintf(txt_string, 2048, "Can not open file %s for reading,\n"
+              "if there is no .pnt file you can try to create an EDF file instead of EDF+.\n",
+              pntfilepath);
+          fclose(logfile);
+          fclose(inputfile);
+          free(log_buf);
+          free(sublog_buf);
+          return -1;
+        }
+      }
+
+      rewind(pntfile);
+      if(fread(scratchpad, 16, 1, pntfile)!=1)
+      {
+        fclose(pntfile);
         fclose(logfile);
         fclose(inputfile);
         free(log_buf);
         free(sublog_buf);
-        pushButton1->setEnabled(true);
-        return;
+        return -1;
+      }
+      scratchpad[16] = 0;
+      if(check_device(scratchpad))
+      {
+        snprintf(txt_string, 2048, "error, .pnt file has unknown signature: \"%s\"\n", scratchpad);
+        fclose(pntfile);
+        fclose(logfile);
+        fclose(inputfile);
+        free(log_buf);
+        free(sublog_buf);
+        return -1;
       }
     }
 
-    rewind(pntfile);
-    if(fread(scratchpad, 16, 1, pntfile)!=1)
+    /***************** initialize labels **************************************/
+
+    for(i=0; i<256; i++)
     {
-      textEdit1->append("error reading .pnt file.\n");
-      fclose(pntfile);
-      fclose(logfile);
-      fclose(inputfile);
-      free(log_buf);
-      free(sublog_buf);
-      pushButton1->setEnabled(true);
-      return;
+      strcpy(labels[i], "-               ");
     }
-    scratchpad[16] = 0;
-    if(check_device(scratchpad))
+
+    strcpy(labels[0],   "EEG FP1         ");
+    strcpy(labels[1],   "EEG FP2         ");
+    strcpy(labels[2],   "EEG F3          ");
+    strcpy(labels[3],   "EEG F4          ");
+    strcpy(labels[4],   "EEG C3          ");
+    strcpy(labels[5],   "EEG C4          ");
+    strcpy(labels[6],   "EEG P3          ");
+    strcpy(labels[7],   "EEG P4          ");
+    strcpy(labels[8],   "EEG O1          ");
+    strcpy(labels[9],   "EEG O2          ");
+    strcpy(labels[10],  "EEG F7          ");
+    strcpy(labels[11],  "EEG F8          ");
+    strcpy(labels[12],  "EEG T3          ");
+    strcpy(labels[13],  "EEG T4          ");
+    strcpy(labels[14],  "EEG T5          ");
+    strcpy(labels[15],  "EEG T6          ");
+    strcpy(labels[16],  "EEG FZ          ");
+    strcpy(labels[17],  "EEG CZ          ");
+    strcpy(labels[18],  "EEG PZ          ");
+    strcpy(labels[19],  "EEG E           ");
+    strcpy(labels[20],  "EEG PG1         ");
+    strcpy(labels[21],  "EEG PG2         ");
+    strcpy(labels[22],  "EEG A1          ");
+    strcpy(labels[23],  "EEG A2          ");
+    strcpy(labels[24],  "EEG T1          ");
+    strcpy(labels[25],  "EEG T2          ");
+    for(i=26; i<35; i++)
     {
-      snprintf(txt_string, 2048, "error, .pnt file has unknown signature: \"%s\"\n", scratchpad);
-      textEdit1->append(QString::fromLocal8Bit(txt_string));
-      fclose(pntfile);
-      fclose(logfile);
-      fclose(inputfile);
-      free(log_buf);
-      free(sublog_buf);
-      pushButton1->setEnabled(true);
-      return;
+      sprintf(labels[i], "EEG X%i          ", i - 25);
     }
-  }
+    strcpy(labels[35],  "EEG X10         ");
+    strcpy(labels[36],  "EEG X11         ");
+    for(i=42; i<74; i++)
+    {
+      sprintf(labels[i], "DC%02i            ", i - 41);
+    }
+    strcpy(labels[74],  "EEG BN1         ");
+    strcpy(labels[75],  "EEG BN2         ");
+    strcpy(labels[76],  "EEG Mark1       ");
+    strcpy(labels[77],  "EEG Mark2       ");
+    strcpy(labels[100], "EEG X12/BP1     ");
+    strcpy(labels[101], "EEG X13/BP2     ");
+    strcpy(labels[102], "EEG X14/BP3     ");
+    strcpy(labels[103], "EEG X15/BP4     ");
+    for(i=104; i<188; i++)
+    {
+      sprintf(labels[i], "EEG X%i         ", i - 88);
+    }
+    for(i=188; i<254; i++)
+    {
+      sprintf(labels[i], "EEG X%i        ", i - 88);
+    }
+    strcpy(labels[255], "Z               ");
 
-/***************** initialize labels **************************************/
+    /***************** start conversion **************************************/
 
-  for(i=0; i<256; i++)
-  {
-    strcpy(labels[i], "-               ");
-  }
+    total_blocks = 0;
 
-  strcpy(labels[0],   "EEG FP1         ");
-  strcpy(labels[1],   "EEG FP2         ");
-  strcpy(labels[2],   "EEG F3          ");
-  strcpy(labels[3],   "EEG F4          ");
-  strcpy(labels[4],   "EEG C3          ");
-  strcpy(labels[5],   "EEG C4          ");
-  strcpy(labels[6],   "EEG P3          ");
-  strcpy(labels[7],   "EEG P4          ");
-  strcpy(labels[8],   "EEG O1          ");
-  strcpy(labels[9],   "EEG O2          ");
-  strcpy(labels[10],  "EEG F7          ");
-  strcpy(labels[11],  "EEG F8          ");
-  strcpy(labels[12],  "EEG T3          ");
-  strcpy(labels[13],  "EEG T4          ");
-  strcpy(labels[14],  "EEG T5          ");
-  strcpy(labels[15],  "EEG T6          ");
-  strcpy(labels[16],  "EEG FZ          ");
-  strcpy(labels[17],  "EEG CZ          ");
-  strcpy(labels[18],  "EEG PZ          ");
-  strcpy(labels[19],  "EEG E           ");
-  strcpy(labels[20],  "EEG PG1         ");
-  strcpy(labels[21],  "EEG PG2         ");
-  strcpy(labels[22],  "EEG A1          ");
-  strcpy(labels[23],  "EEG A2          ");
-  strcpy(labels[24],  "EEG T1          ");
-  strcpy(labels[25],  "EEG T2          ");
-  for(i=26; i<35; i++)
-  {
-    sprintf(labels[i], "EEG X%i          ", i - 25);
-  }
-  strcpy(labels[35],  "EEG X10         ");
-  strcpy(labels[36],  "EEG X11         ");
-  for(i=42; i<74; i++)
-  {
-    sprintf(labels[i], "DC%02i            ", i - 41);
-  }
-  strcpy(labels[74],  "EEG BN1         ");
-  strcpy(labels[75],  "EEG BN2         ");
-  strcpy(labels[76],  "EEG Mark1       ");
-  strcpy(labels[77],  "EEG Mark2       ");
-  strcpy(labels[100], "EEG X12/BP1     ");
-  strcpy(labels[101], "EEG X13/BP2     ");
-  strcpy(labels[102], "EEG X14/BP3     ");
-  strcpy(labels[103], "EEG X15/BP4     ");
-  for(i=104; i<188; i++)
-  {
-    sprintf(labels[i], "EEG X%i         ", i - 88);
-  }
-  for(i=188; i<254; i++)
-  {
-    sprintf(labels[i], "EEG X%i        ", i - 88);
-  }
-  strcpy(labels[255], "Z               ");
+    fseeko(inputfile, 0x0091LL, SEEK_SET);
+    ctl_block_cnt = fgetc(inputfile);
+    if(ctl_block_cnt==EOF)
+    {
+      fclose(inputfile);
+      if(edfplus)
+      {
+        fclose(logfile);
+        free(log_buf);
+        free(sublog_buf);
+        fclose(pntfile);
+      }
+      return -1;
+    }
 
-  if(read_21e_file(path))
-  {
-    textEdit1->append("Can not open *.21e file, converter will use default electrode names.");
-  }
+    for(i=0; i<ctl_block_cnt; i++)
+    {
+      fseeko(inputfile, (long long)(0x0092 + (i * 20)), SEEK_SET);
+      if(fread((char *)(&ctlblock_address), 4, 1, inputfile)!=1)
+      {
+        fclose(inputfile);
+        if(edfplus)
+        {
+          fclose(logfile);
+          free(log_buf);
+          free(sublog_buf);
+          fclose(pntfile);
+        }
+        return -1;
+      }
+      fseeko(inputfile, (long long)(ctlblock_address + 17), SEEK_SET);
+      datablock_cnt = fgetc(inputfile);
+      if(datablock_cnt==EOF)
+      {
+        fclose(inputfile);
+        if(edfplus)
+        {
+          fclose(logfile);
+          free(log_buf);
+          free(sublog_buf);
+          fclose(pntfile);
+        }
+        return -1;
+      }
 
-/***************** start conversion **************************************/
+      for(j=0; j<datablock_cnt; j++)
+      {
+        fseeko(inputfile, (long long)(ctlblock_address + (j * 20) + 18), SEEK_SET);
+        if(fread((char *)(&wfmblock_address), 4, 1, inputfile)!=1)
+        {
+          fclose(inputfile);
+          if(edfplus)
+          {
+            fclose(logfile);
+            free(log_buf);
+            free(sublog_buf);
+            fclose(pntfile);
+          }
+          return -1;
+        }
 
-  total_blocks = 0;
+        /********************************************************************/
 
-  fseeko(inputfile, 0x0091LL, SEEK_SET);
-  ctl_block_cnt = fgetc(inputfile);
-  if(ctl_block_cnt==EOF)
-  {
-    textEdit1->append("error reading inputfile.\n");
-    pushButton1->setEnabled(true);
-    fclose(inputfile);
+        strcpy(outputpath, path);
+        if(edfplus)  sprintf(outputpath + strlen(path) - 4, "_%u-%u+.edf", i + 1, j + 1);
+        else  sprintf(outputpath + strlen(path) - 4, "_%u-%u.edf", i + 1, j + 1);
+
+        outputfile = fopeno(outputpath, "wb");
+        if(outputfile==NULL)
+        {
+          snprintf(txt_string, 2048, "can not open file %s for writing.\n", outputpath);
+          fclose(inputfile);
+          if(edfplus)
+          {
+            fclose(logfile);
+            free(log_buf);
+            free(sublog_buf);
+            fclose(pntfile);
+          }
+          return -1;
+        }
+
+
+        error = convert_nk2edf(inputfile, outputfile, pntfile, wfmblock_address, edfplus, total_logs, log_buf, read_subevents);
+        if(error==0)
+        {
+          snprintf(txt_string, 2048, "to %s", outputpath);
+        }
+
+        if(fclose(outputfile))
+        {
+          fclose(inputfile);
+          if(edfplus)
+          {
+            fclose(logfile);
+            fclose(pntfile);
+            free(log_buf);
+            free(sublog_buf);
+          }
+          return -1;
+        }
+
+        if(error)
+        {
+          if(edfplus)
+          {
+            fclose(logfile);
+            fclose(pntfile);
+            free(log_buf);
+            free(sublog_buf);
+          }
+          return -1;
+        }
+
+        total_blocks++;
+
+        /**************************************************************/
+      }
+    }
+
     if(edfplus)
     {
-      fclose(logfile);
       free(log_buf);
       free(sublog_buf);
-      fclose(pntfile);
     }
-    return;
+
+    if(edfplus)  snprintf(txt_string, 2048, "Converted %u waveformblock(s) successfully to EDF+.\n", total_blocks);
+    else  snprintf(txt_string, 2048, "Converted %u waveformblock(s) successfully to EDF.\n", total_blocks);
+
   }
-
-  for(i=0; i<ctl_block_cnt; i++)
-  {
-    fseeko(inputfile, (long long)(0x0092 + (i * 20)), SEEK_SET);
-    if(fread((char *)(&ctlblock_address), 4, 1, inputfile)!=1)
-    {
-      textEdit1->append("error reading inputfile.\n");
-      pushButton1->setEnabled(true);
-      fclose(inputfile);
-      if(edfplus)
-      {
-        fclose(logfile);
-        free(log_buf);
-        free(sublog_buf);
-        fclose(pntfile);
-      }
-      return;
-    }
-    fseeko(inputfile, (long long)(ctlblock_address + 17), SEEK_SET);
-    datablock_cnt = fgetc(inputfile);
-    if(datablock_cnt==EOF)
-    {
-      textEdit1->append("error reading inputfile.\n");
-      pushButton1->setEnabled(true);
-      fclose(inputfile);
-      if(edfplus)
-      {
-        fclose(logfile);
-        free(log_buf);
-        free(sublog_buf);
-        fclose(pntfile);
-      }
-      return;
-    }
-
-    for(j=0; j<datablock_cnt; j++)
-    {
-      fseeko(inputfile, (long long)(ctlblock_address + (j * 20) + 18), SEEK_SET);
-      if(fread((char *)(&wfmblock_address), 4, 1, inputfile)!=1)
-      {
-        textEdit1->append("error reading inputfile.\n");
-        pushButton1->setEnabled(true);
-        fclose(inputfile);
-        if(edfplus)
-        {
-          fclose(logfile);
-          free(log_buf);
-          free(sublog_buf);
-          fclose(pntfile);
-        }
-        return;
-      }
-
-   /********************************************************************/
-
-      strcpy(outputpath, path);
-      if(edfplus)  sprintf(outputpath + strlen(path) - 4, "_%u-%u+.edf", i + 1, j + 1);
-      else  sprintf(outputpath + strlen(path) - 4, "_%u-%u.edf", i + 1, j + 1);
-
-      outputfile = fopeno(outputpath, "wb");
-      if(outputfile==NULL)
-      {
-        snprintf(txt_string, 2048, "can not open file %s for writing.\n", outputpath);
-        textEdit1->append(QString::fromLocal8Bit(txt_string));
-        pushButton1->setEnabled(true);
-        fclose(inputfile);
-        if(edfplus)
-        {
-          fclose(logfile);
-          free(log_buf);
-          free(sublog_buf);
-          fclose(pntfile);
-        }
-        return;
-      }
-
-      textEdit1->append("Converting a waveform datablock...");
-
-      for(k=0; k<10; k++)  qApp->processEvents();
-
-      error = convert_nk2edf(inputfile, outputfile, pntfile, wfmblock_address, edfplus, total_logs, log_buf, read_subevents);
-      if(error==0)
-      {
-        snprintf(txt_string, 2048, "to %s", outputpath);
-        textEdit1->append(txt_string);
-      }
-      if(error==1)  textEdit1->append("malloc error.\n");
-      if(error==2)  textEdit1->append("read error during conversion.\n");
-      if(error==3)  textEdit1->append("write error during conversion.\n");
-      if(error==4)  textEdit1->append("format error.\n");
-
-      if(fclose(outputfile))
-      {
-        textEdit1->append("error closing outputfile.\n");
-        pushButton1->setEnabled(true);
-        fclose(inputfile);
-        if(edfplus)
-        {
-          fclose(logfile);
-          fclose(pntfile);
-          free(log_buf);
-          free(sublog_buf);
-        }
-        return;
-      }
-
-      if(error)
-      {
-        if(edfplus)
-        {
-          fclose(logfile);
-          fclose(pntfile);
-          free(log_buf);
-          free(sublog_buf);
-        }
-        pushButton1->setEnabled(true);
-        return;
-      }
-
-      total_blocks++;
-
-      /**************************************************************/
-    }
-  }
-
-  if(fclose(inputfile))  textEdit1->append("error closing inputfile.\n");
-  if(edfplus)
-  {
-    if(fclose(logfile))  textEdit1->append("error closing .log file.\n");
-    if(fclose(pntfile))  textEdit1->append("error closing .pnt file.\n");
-    free(log_buf);
-    free(sublog_buf);
-  }
-
-  if(edfplus)  snprintf(txt_string, 2048, "Converted %u waveformblock(s) successfully to EDF+.\n", total_blocks);
-  else  snprintf(txt_string, 2048, "Converted %u waveformblock(s) successfully to EDF.\n", total_blocks);
-  textEdit1->append(txt_string);
-
-  pushButton1->setEnabled(true);
 }
 
 
 
 
-int UI_NK2EDFwindow::convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pntfile,  int offset, int edfplus, int n_logs, char *log_buf, int read_subevents)
+int convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pntfile,  int offset, int edfplus, int n_logs, char *log_buf, int read_subevents)
 {
   int i, j, k, p,
       temp,
@@ -655,7 +545,7 @@ int UI_NK2EDFwindow::convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pnt
        *annotations,
        scratchpad[48];
 
-/************************* filter events ******************************************/
+  /************************* filter events ******************************************/
 
   for(i=0; i<n_logs; i++)
   {
@@ -670,7 +560,7 @@ int UI_NK2EDFwindow::convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pnt
   log_buf += i * 45;
   n_logs -= i;
 
-/************************* write EDF-header ***************************************/
+  /************************* write EDF-header ***************************************/
 
   rewind(outputfile);
 
@@ -1285,7 +1175,7 @@ int UI_NK2EDFwindow::convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pnt
   for(i=0; i<(channels * 32); i++)  fputc(' ', outputfile);
   if(edfplus)  for(i=0; i<32; i++)  fputc(' ', outputfile);
 
-/************************* write data ****************************************************/
+  /************************* write data ****************************************************/
 
   bufsize = 4194304;
   buf = (char *)calloc(1, bufsize);
@@ -1306,10 +1196,6 @@ int UI_NK2EDFwindow::convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pnt
 
   left_records = record_duration;
 
-  QProgressDialog progress("Converting a waveform datablock...", NULL, 0, left_records);
-  progress.setWindowModality(Qt::WindowModal);
-  progress.setMinimumDuration(200);
-
   progress_steps = left_records / 100;
   if(progress_steps < 1)
   {
@@ -1327,9 +1213,6 @@ int UI_NK2EDFwindow::convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pnt
     {
       if(!(records_written%progress_steps))
       {
-        progress.setValue(records_written);
-
-        qApp->processEvents();
       }
 
       for(j=0; j<raster; j+=2)
@@ -1406,8 +1289,6 @@ int UI_NK2EDFwindow::convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pnt
     left_records -= records_in_buf;
   }
 
-  progress.reset();
-
   total_elapsed_time += record_duration / 10;
 
   free(buf);
@@ -1416,7 +1297,7 @@ int UI_NK2EDFwindow::convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pnt
 }
 
 
-int UI_NK2EDFwindow::check_device(char *str)
+int check_device(char *str)
 {
   int error = 1;
 
@@ -1429,117 +1310,13 @@ int UI_NK2EDFwindow::check_device(char *str)
   if(!strncmp(str, "EEG-2100  V02.00", 16))  error = 0;
   if(!strncmp(str, "DAE-2100D V01.30", 16))  error = 0;
   if(!strncmp(str, "DAE-2100D V02.00", 16))  error = 0;
-//  if(!strncmp(str, "EEG-1200A V01.00", 16))  error = 0;
+  //  if(!strncmp(str, "EEG-1200A V01.00", 16))  error = 0;
   if(!strncmp(str, "EEG-1100A V02.00", 16))  error = 0;
   if(!strncmp(str, "EEG-1100B V02.00", 16))  error = 0;
   if(!strncmp(str, "EEG-1100C V02.00", 16))  error = 0;
 
   return(error);
 }
-
-
-int UI_NK2EDFwindow::read_21e_file(char *e21filepath)
-{
-  int n,
-      flag_eleclines=0,
-      idx;
-
-  char *electrode_name,
-       electrode_name_buffer[ELECTRODE_NAME_MAXLEN],
-       scratchpad[64],
-       *charpntr;
-
-  FILE *inputfile;
-
-
-  remove_extension_from_filename(e21filepath);
-  strcat(e21filepath, ".21E");
-  inputfile = fopeno(e21filepath, "rb");
-  if(inputfile==NULL)
-  {
-    remove_extension_from_filename(e21filepath);
-    strcat(e21filepath, ".21e");
-    inputfile = fopeno(e21filepath, "rb");
-    if(inputfile==NULL)
-    {
-      return(1);
-    }
-  }
-
-  while (!feof(inputfile))
-  {
-    charpntr = fgets(electrode_name_buffer, ELECTRODE_NAME_MAXLEN-1, inputfile);
-
-    if(charpntr == NULL)
-    {
-      break;
-    }
-
-    if(strncmp(electrode_name_buffer, ELECTRODE_TAG, strlen(ELECTRODE_TAG)) == 0)
-    {
-      flag_eleclines = 1;
-    }
-    else
-    {
-      if(strncmp(electrode_name_buffer, ELECTRODE_UNTAG, strlen(ELECTRODE_UNTAG)) == 0)
-      {
-        flag_eleclines = 0;
-      }
-    }
-
-    if(flag_eleclines)
-    {
-      if(strtok(electrode_name_buffer, "=") != NULL)
-      {
-        idx = atoi(electrode_name_buffer);
-
-        electrode_name = strtok(NULL, "=");
-
-        if(electrode_name != NULL)
-        {
-          n = strlen(electrode_name);
-
-          if((n > 0)&&(electrode_name[n-1] == 10))
-          {
-            electrode_name[n-1] = 0;
-          }
-
-          if((n > 1)&&(electrode_name[n-2] == 13))
-          {
-            electrode_name[n-2] = 0;
-          }
-
-          n = strlen(electrode_name);
-
-          if((idx >= 0) && (idx < 256))
-          {
-            if(n > 0)
-            {
-              strncpy(scratchpad, electrode_name, 16);
-
-              strcat(scratchpad, "                ");
-
-              latin1_to_ascii(scratchpad, 16);
-
-              scratchpad[16] = 0;
-
-              strcpy(labels[idx], scratchpad);
-            }
-            else
-            {
-              strcpy(labels[idx], "-               ");
-            }
-          }
-        }
-      }
-    }
-  }
-
-  fclose(inputfile);
-
-  return(0);
-}
-
 
 
 

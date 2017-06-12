@@ -78,13 +78,8 @@
 #define VIDEO_STATUS_PAUSED      17
 #define VIDEO_STATUS_ENDED       18
 
-#include "filter.h"
-#include "third_party/fidlib/fidlib.h"
-#include "ravg_filter.h"
-#include "spike_filter.h"
-#include "ecg_filter.h"
-#include "z_ratio_filter.h"
 #include "edf_annot_list.h"
+#include "third_party/fidlib/fidlib.h"
 
 
 struct edfparamblock{

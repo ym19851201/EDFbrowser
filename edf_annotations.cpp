@@ -33,7 +33,6 @@
 
 static void process_events(void)
 {
-  qApp->processEvents();
 }
 
 
@@ -185,8 +184,6 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
   cnv_buf = (char *)calloc(1, recordsize);
   if(cnv_buf==NULL)
   {
-    QMessageBox messagewindow(QMessageBox::Critical, "Error", "Memory allocation error occurred when trying to read annotations.\n(cnv_buf)");
-    messagewindow.exec();
     return(1);
   }
 
@@ -202,8 +199,6 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
   scratchpad = (char *)calloc(1, max_tal_ln + 3);
   if(scratchpad==NULL)
   {
-    QMessageBox messagewindow(QMessageBox::Critical, "Error", "Memory allocation error occurred when trying to read annotations.\n(scratchpad)");
-    messagewindow.exec();
     free(cnv_buf);
     return(1);
   }
@@ -211,8 +206,6 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
   time_in_txt = (char *)calloc(1, max_tal_ln + 3);
   if(time_in_txt==NULL)
   {
-    QMessageBox messagewindow(QMessageBox::Critical, "Error", "Memory allocation error occurred when trying to read annotations.\n(time_in_txt)");
-    messagewindow.exec();
     free(cnv_buf);
     free(scratchpad);
     return(1);
@@ -221,8 +214,6 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
   duration_in_txt = (char *)calloc(1, max_tal_ln + 3);
   if(duration_in_txt==NULL)
   {
-    QMessageBox messagewindow(QMessageBox::Critical, "Error", "Memory allocation error occurred when trying to read annotations.\n(duration_in_txt)");
-    messagewindow.exec();
     free(cnv_buf);
     free(scratchpad);
     free(time_in_txt);
@@ -231,18 +222,12 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
 
   if(fseeko(inputfile, (long long)((edfsignals + 1) * 256), SEEK_SET))
   {
-    QMessageBox messagewindow(QMessageBox::Critical, "Error", "An error occurred when reading inputfile annotations. (fseek())");
-    messagewindow.exec();
     free(cnv_buf);
     free(scratchpad);
     free(time_in_txt);
     free(duration_in_txt);
     return(2);
   }
-
-  QProgressDialog progress("Scanning file for annotations...", "Abort", 0, datarecords);
-  progress.setWindowModality(Qt::WindowModal);
-  progress.setMinimumDuration(200);
 
   progress_steps = datarecords / 100;
   if(progress_steps < 1)
@@ -256,27 +241,11 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
   {
     if(!(i%progress_steps))
     {
-      progress.setValue(i);
 
-      qApp->processEvents();
-
-      if(progress.wasCanceled() == true)
-      {
-        edf_hdr->annots_not_read = 1;
-
-        free(cnv_buf);
-        free(scratchpad);
-        free(time_in_txt);
-        free(duration_in_txt);
-        return(11);
-      }
     }
 
     if(fread(cnv_buf, recordsize, 1, inputfile)!=1)
     {
-      progress.reset();
-      QMessageBox messagewindow(QMessageBox::Critical, "Error", "An error occurred while reading inputfile annotations. (fread())");
-      messagewindow.exec();
       free(cnv_buf);
       free(scratchpad);
       free(time_in_txt);
@@ -439,9 +408,6 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
 
                 if(edfplus_annotation_add_item(&edf_hdr->annot_list, annotblock))
                 {
-                  progress.reset();
-                  QMessageBox messagewindow(QMessageBox::Critical, "Error", "A memory allocation error occurred while reading annotations.");
-                  messagewindow.exec();
                   free(cnv_buf);
                   free(scratchpad);
                   free(time_in_txt);
@@ -507,10 +473,6 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
 
       if(error)
       {
-        progress.reset();
-        QMessageBox messagewindow(QMessageBox::Critical, "Error", "Can not read annotations because there is an EDF or BDF incompatibility in this file.\n"
-                                                                  "For more information, run the EDF/BDF compatibility checker in the Tools menu.");
-        messagewindow.exec();
         free(cnv_buf);
         free(scratchpad);
         free(time_in_txt);
@@ -548,9 +510,6 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
 
               if(edfplus_annotation_add_item(&edf_hdr->annot_list, annotblock))
               {
-                progress.reset();
-                QMessageBox messagewindow(QMessageBox::Critical, "Error", "A memory allocation error occurred while reading annotations.");
-                messagewindow.exec();
                 free(cnv_buf);
                 free(scratchpad);
                 free(time_in_txt);
@@ -568,15 +527,8 @@ int EDF_annotations::get_annotations(struct edfhdrblock *edf_hdr, int read_nk_tr
     }
   }
 
-  QApplication::setOverrideCursor(Qt::WaitCursor);
-
-  qApp->processEvents();
-
   edfplus_annotation_sort(&edf_hdr->annot_list, &process_events);
 
-  QApplication::restoreOverrideCursor();
-
-  progress.reset();
 
   free(cnv_buf);
   free(scratchpad);

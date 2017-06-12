@@ -33,11 +33,6 @@
 #define EDF_ANNOTATIONS_H
 
 
-#include <QtGlobal>
-#include <QApplication>
-#include <QMessageBox>
-#include <QProgressDialog>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

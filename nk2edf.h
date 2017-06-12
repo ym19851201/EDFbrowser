@@ -26,28 +26,6 @@
 */
 
 
-#ifndef UI_NK2EDFFORM_H
-#define UI_NK2EDFFORM_H
-
-
-#include <QtGlobal>
-#include <QApplication>
-#include <QDialog>
-#include <QPushButton>
-#include <QObject>
-#include <QTextEdit>
-#include <QFileDialog>
-#include <QCheckBox>
-#include <QCursor>
-#include <QStyle>
-#if QT_VERSION < 0x050000
-#include <QPlastiqueStyle>
-#include <QWindowsStyle>
-#endif
-#include <QProgressDialog>
-#include <QString>
-#include <QByteArray>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,46 +33,9 @@
 #include "global.h"
 #include "utils.h"
 
-
-
-class UI_NK2EDFwindow : public QObject
-{
-  Q_OBJECT
-
-public:
-  UI_NK2EDFwindow(char *recent_dir=NULL);
-
-private:
-
-
-QPushButton  *pushButton1,
-             *pushButton2;
-
-QTextEdit    *textEdit1;
-
-QDialog      *myobjectDialog;
-
-QCheckBox    *checkBox1;
-
 int total_elapsed_time;
+char *recent_opendir,
+  labels[256][17];
 
-char  *recent_opendir,
-      labels[256][17];
-
-int check_device(char *);
-
-int read_21e_file(char *);
-
-private slots:
-
-void SelectFileButton();
-int convert_nk2edf(FILE *, FILE *, FILE *, int, int, int, char *, int);
-
-};
-
-
-
-
-#endif
-
-
+int convert_nk2edf(FILE *inputfile, FILE *outputfile, FILE *pntfile,  int offset, int edfplus, int n_logs, char *log_buf, int read_subevents);
+int check_device(char *str);
